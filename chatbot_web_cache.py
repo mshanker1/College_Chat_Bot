@@ -7,6 +7,10 @@ from typing import List, Dict, Set
 import time
 from urllib.parse import urljoin, urlparse
 import urllib.robotparser
+import json
+import os
+from datetime import datetime, timedelta
+import hashlib
 
 # Configure page
 st.set_page_config(
@@ -22,6 +26,92 @@ class WebsiteChatbot:
         self.text_chunks = []
         self.max_chunk_size = 3000
         self.max_pages = 20
+        self.cache_dir = "website_cache"
+        self.cache_duration_days = 90  # Cache for 3 months
+        
+        # Create cache directory if it doesn't exist
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+    
+    def get_cache_filename(self, url: str) -> str:
+        """Generate a cache filename based on the URL"""
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        return os.path.join(self.cache_dir, f"cache_{url_hash}.json")
+    
+    def is_cache_valid(self, cache_file: str) -> bool:
+        """Check if cache file exists and is still valid"""
+        if not os.path.exists(cache_file):
+            return False
+        
+        try:
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+            
+            cached_date = datetime.fromisoformat(cache_data.get('cached_at', ''))
+            return datetime.now() - cached_date < timedelta(days=self.cache_duration_days)
+        except:
+            return False
+    
+    def save_to_cache(self, url: str, pages_content: Dict[str, str], text_chunks: List[Dict[str, str]]) -> None:
+        """Save crawled data to cache"""
+        cache_file = self.get_cache_filename(url)
+        cache_data = {
+            'url': url,
+            'cached_at': datetime.now().isoformat(),
+            'pages_content': pages_content,
+            'text_chunks': text_chunks
+        }
+        
+        try:
+            with open(cache_file, 'w') as f:
+                json.dump(cache_data, f, indent=2)
+        except Exception as e:
+            st.warning(f"Could not save cache: {str(e)}")
+    
+    def load_from_cache(self, url: str) -> tuple:
+        """Load data from cache if available and valid"""
+        cache_file = self.get_cache_filename(url)
+        
+        if not self.is_cache_valid(cache_file):
+            return None, None
+        
+        try:
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+            
+            pages_content = cache_data.get('pages_content', {})
+            text_chunks = cache_data.get('text_chunks', [])
+            
+            return pages_content, text_chunks
+        except Exception as e:
+            st.warning(f"Could not load cache: {str(e)}")
+            return None, None
+    
+    def get_cache_info(self, url: str) -> Dict:
+        """Get information about cached data"""
+        cache_file = self.get_cache_filename(url)
+        
+        if not os.path.exists(cache_file):
+            return {'exists': False}
+        
+        try:
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+            
+            cached_date = datetime.fromisoformat(cache_data.get('cached_at', ''))
+            days_old = (datetime.now() - cached_date).days
+            is_valid = days_old < self.cache_duration_days
+            
+            return {
+                'exists': True,
+                'cached_at': cached_date,
+                'days_old': days_old,
+                'is_valid': is_valid,
+                'pages_count': len(cache_data.get('pages_content', {})),
+                'chunks_count': len(cache_data.get('text_chunks', []))
+            }
+        except:
+            return {'exists': False}
         
     def check_robots_txt(self, base_url: str) -> bool:
         """Check if crawling is allowed by robots.txt"""
@@ -251,89 +341,151 @@ Answer:"""
         except Exception as e:
             return f"Error generating response: {str(e)}. Please check your OpenAI API key and try again."
 
+def get_openai_client():
+    """Get OpenAI client with API key from environment or secrets"""
+    api_key = None
+    
+    # Try to get API key from environment variable
+    api_key = os.getenv("OPENAI_API_KEY")
+    
+    # If not found, try Streamlit secrets
+    if not api_key:
+        try:
+            api_key = st.secrets["OPENAI_API_KEY"]
+        except:
+            pass
+    
+    if api_key:
+        return OpenAI(api_key=api_key)
+    else:
+        return None
+
 def main():
     st.title("🌐 Website Chatbot")
-    st.markdown("Enter a website URL and ask questions about its content!")
+    st.markdown("Ask questions about pre-configured website content!")
     
     # Initialize chatbot
     if 'chatbot' not in st.session_state:
         st.session_state.chatbot = WebsiteChatbot()
         st.session_state.messages = []
         st.session_state.website_loaded = False
-        st.session_state.openai_client = None
+        st.session_state.current_url = None
     
-    # Sidebar for API key and website input
+    # Get OpenAI client
+    openai_client = get_openai_client()
+    
+    if not openai_client:
+        st.error("❌ OpenAI API key not found!")
+        st.info("Please set the OPENAI_API_KEY environment variable or add it to Streamlit secrets.")
+        st.stop()
+    
+    # Sidebar for website configuration
     with st.sidebar:
-        st.header("⚙️ Setup")
+        st.header("🌐 Website Configuration")
         
-        # API Key input
-        api_key = st.text_input(
-            "OpenAI API Key",
-            type="password",
-            help="Enter your OpenAI API key here"
-        )
-        
-        if api_key:
-            st.session_state.openai_client = OpenAI(api_key=api_key)
-            st.success("✅ API Key set!")
-        else:
-            st.warning("⚠️ Please enter your OpenAI API key")
-            st.session_state.openai_client = None
-        
-        st.markdown("---")
-        
-        # Website input
-        st.header("🌐 Website Crawler")
+        # Pre-configured website URL (you can change this)
+        default_url = "https://example.edu"  # Replace with your target website
         website_url = st.text_input(
             "Website URL",
-            placeholder="https://example.edu",
-            help="Enter the college website URL you want to crawl"
+            value=default_url,
+            help="Website to crawl and cache"
         )
         
         max_pages = st.slider(
             "Maximum pages to crawl",
             min_value=1,
-            max_value=250,
+            max_value=50,
             value=10,
             help="More pages = more comprehensive but slower"
         )
         
-        if website_url and st.button("🕷️ Crawl Website"):
-            if not api_key:
-                st.error("Please enter your OpenAI API key first!")
-            elif not website_url.startswith(('http://', 'https://')):
+        # Check cache status
+        if website_url:
+            cache_info = st.session_state.chatbot.get_cache_info(website_url)
+            
+            if cache_info['exists']:
+                if cache_info['is_valid']:
+                    st.success(f"✅ Cache available ({cache_info['days_old']} days old)")
+                    st.info(f"📊 {cache_info['pages_count']} pages, {cache_info['chunks_count']} chunks")
+                else:
+                    st.warning(f"⚠️ Cache expired ({cache_info['days_old']} days old)")
+            else:
+                st.info("💾 No cache found")
+        
+        # Load website button
+        if st.button("🔄 Load Website"):
+            if not website_url.startswith(('http://', 'https://')):
                 st.error("Please enter a valid URL starting with http:// or https://")
             else:
-                with st.spinner("Crawling website... This may take a few minutes."):
+                # Try to load from cache first
+                cached_pages, cached_chunks = st.session_state.chatbot.load_from_cache(website_url)
+                
+                if cached_pages and cached_chunks:
+                    st.success("📦 Loaded from cache!")
+                    st.session_state.chatbot.pages_content = cached_pages
+                    st.session_state.chatbot.text_chunks = cached_chunks
+                    st.session_state.website_loaded = True
+                    st.session_state.current_url = website_url
+                else:
+                    # Cache not available or expired, crawl the website
+                    with st.spinner("Crawling website... This may take a few minutes."):
+                        try:
+                            # Crawl the website
+                            pages_content = st.session_state.chatbot.crawl_website(website_url, max_pages)
+                            
+                            if pages_content:
+                                # Process the content
+                                st.session_state.chatbot.process_crawled_content(pages_content)
+                                
+                                # Save to cache
+                                st.session_state.chatbot.save_to_cache(
+                                    website_url, 
+                                    pages_content, 
+                                    st.session_state.chatbot.text_chunks
+                                )
+                                
+                                st.session_state.website_loaded = True
+                                st.session_state.current_url = website_url
+                                
+                                st.success(f"✅ Successfully crawled and cached {len(pages_content)} pages!")
+                                st.info(f"📊 Total content: {len(st.session_state.chatbot.text_chunks)} chunks")
+                                
+                                # Show crawled pages
+                                with st.expander("📄 Crawled Pages"):
+                                    for url in pages_content.keys():
+                                        st.write(f"• {url}")
+                            else:
+                                st.error("❌ No content could be extracted from the website")
+                        except Exception as e:
+                            st.error(f"❌ Error crawling website: {str(e)}")
+        
+        # Force recrawl button
+        if st.session_state.website_loaded:
+            st.markdown("---")
+            if st.button("🔄 Force Recrawl", help="Ignore cache and crawl fresh"):
+                with st.spinner("Recrawling website..."):
                     try:
-                        # Crawl the website
                         pages_content = st.session_state.chatbot.crawl_website(website_url, max_pages)
-                        
                         if pages_content:
-                            # Process the content
                             st.session_state.chatbot.process_crawled_content(pages_content)
-                            st.session_state.website_loaded = True
-                            
-                            st.success(f"✅ Successfully crawled {len(pages_content)} pages!")
-                            st.info(f"📊 Total content: {len(st.session_state.chatbot.text_chunks)} chunks")
-                            
-                            # Show crawled pages
-                            with st.expander("📄 Crawled Pages"):
-                                for url in pages_content.keys():
-                                    st.write(f"• {url}")
-                        else:
-                            st.error("❌ No content could be extracted from the website")
+                            st.session_state.chatbot.save_to_cache(
+                                website_url, 
+                                pages_content, 
+                                st.session_state.chatbot.text_chunks
+                            )
+                            st.success("✅ Website recrawled and cache updated!")
                     except Exception as e:
-                        st.error(f"❌ Error crawling website: {str(e)}")
+                        st.error(f"❌ Error recrawling: {str(e)}")
         
         # Website status
         if st.session_state.website_loaded:
             st.success("🌐 Website ready for questions!")
+            st.caption(f"Current: {st.session_state.current_url}")
         else:
-            st.info("👆 Enter a website URL and crawl it to get started")
+            st.info("👆 Click 'Load Website' to get started")
     
     # Main chat interface
-    if st.session_state.website_loaded and st.session_state.openai_client:
+    if st.session_state.website_loaded:
         st.header("💬 Ask Questions")
         
         # Display chat history
@@ -361,7 +513,7 @@ def main():
                     answer = st.session_state.chatbot.generate_answer(
                         question, 
                         relevant_chunks,
-                        st.session_state.openai_client
+                        openai_client
                     )
                     
                     st.markdown(answer)
@@ -392,10 +544,8 @@ def main():
                 st.session_state.messages.append({"role": "user", "content": "What housing options are available?"})
                 st.rerun()
     
-    elif not st.session_state.website_loaded:
-        st.info("👈 Please enter a website URL and crawl it first using the sidebar.")
-    elif not st.session_state.openai_client:
-        st.warning("👈 Please enter your OpenAI API key in the sidebar.")
+    else:
+        st.info("👈 Please click 'Load Website' in the sidebar to get started.")
     
     # Clear chat button
     if st.session_state.messages:
