@@ -1,0 +1,4 @@
+OpenAI
+requests
+BeautifulSoup4
+PyPDF2
