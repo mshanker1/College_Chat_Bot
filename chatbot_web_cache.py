@@ -384,7 +384,7 @@ def main():
         st.header("🌐 Website Configuration")
         
         # Pre-configured website URL (you can change this)
-        default_url = "https://example.edu"  # Replace with your target website
+        default_url = "https://maryvillecollege.smartcatalogiq.com/en/current/academic-catalog/"  # Replace with your target website
         website_url = st.text_input(
             "Website URL",
             value=default_url,
