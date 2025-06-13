@@ -384,7 +384,7 @@ def main():
         st.header("🌐 Website Configuration")
         
         # Pre-configured website URL (you can change this)
-        default_url = "https://maryvillecollege.smartcatalogiq.com/en/current/academic-catalog/"  # Replace with your target website
+        default_url = "https://www.maryvillecollege.edu/"  # Replace with your target website
         website_url = st.text_input(
             "Website URL",
             value=default_url,
@@ -394,7 +394,7 @@ def main():
         max_pages = st.slider(
             "Maximum pages to crawl",
             min_value=1,
-            max_value=50,
+            max_value=5000,
             value=10,
             help="More pages = more comprehensive but slower"
         )
