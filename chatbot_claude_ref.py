@@ -506,8 +506,8 @@ def main():
         # Advanced settings
         with st.expander("⚙️ Advanced Settings"):
             chunk_size = st.slider("Chunk Size", 400, 1200, 800, 50)
-            overlap = st.slider("Chunk Overlap", 50, 200, 150, 25)
-            search_results = st.slider("Search Results", 3, 15, 13, 1)
+            overlap = st.slider("Chunk Overlap", 50, 200, 100, 25)
+            search_results = st.slider("Search Results", 3, 15, 8, 1)
         
         uploaded_files = st.file_uploader(
             "Choose PDF files",
