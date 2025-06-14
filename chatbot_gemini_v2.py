@@ -388,9 +388,11 @@ Answer:"""
                     {"role": "system", "content": "You are a helpful assistant specialized in answering questions from provided text context. Strictly adhere to the instructions given in the user prompt."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=1500, # Increased max_tokens to allow for longer answers and citations
+                max_tokens=2000, # Increased max_tokens to allow for longer answers and citations
                 temperature=0.1, # Lower temperature for more factual answers
-                top_p=1 # Keeping top_p at default or 1 for consistent factual output
+                top_p=1, # Keeping top_p at default or 1 for consistent factual output
+                frequency_penalty=0.1,  # This is where you set it
+                presence_penalty=0.0
             )
             answer = response.choices[0].message.content.strip()
             return answer
