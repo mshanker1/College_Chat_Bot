@@ -77,7 +77,7 @@ hide_streamlit_style = """
 
 # Check if running in embedded mode
 try:
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params()
     if query_params.get("embed") or query_params.get("embedded"):
         st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 except AttributeError:
