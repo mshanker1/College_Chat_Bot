@@ -34,6 +34,63 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  # Hide sidebar by default
 )
 
+# Configure for embedding - hide Streamlit UI elements when embedded
+hide_streamlit_style = """
+<style>
+    /* Hide the Streamlit header and menu */
+    header[data-testid="stHeader"] {
+        height: 0px;
+        visibility: hidden;
+    }
+    
+    /* Hide the footer */
+    footer[data-testid="stFooter"] {
+        visibility: hidden;
+    }
+    
+    /* Reduce top padding */
+    .block-container {
+        padding-top: 1rem;
+    }
+    
+    /* Hide sidebar toggle button when collapsed */
+    button[data-testid="collapsedControl"] {
+        display: none;
+    }
+    
+    /* Optional: Hide the main menu hamburger */
+    #MainMenu {
+        visibility: hidden;
+    }
+    
+    /* Optional: Remove "Made with Streamlit" footer */
+    footer:after {
+        content: "";
+        visibility: hidden;
+        display: block;
+        position: relative;
+        padding: 5px;
+        top: 2px;
+    }
+</style>
+"""
+
+# Check if running in embedded mode
+try:
+    query_params = st.experimental_get_query_params()
+    if query_params.get("embed") or query_params.get("embedded"):
+        st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+except AttributeError:
+    # Fallback for newer Streamlit versions
+    try:
+        query_params = st.query_params
+        if query_params.get("embed") or query_params.get("embedded"):
+            st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    except:
+        # If query params don't work, apply styles anyway for embedded use
+        st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+
 # --- INSTITUTIONAL CONFIGURATION ---
 class Config:
     """Optimized configuration for institutional deployment."""
