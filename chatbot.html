@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Assistant - Embedded Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chatbot-wrapper {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chatbot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        .chatbot-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .chatbot-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .chatbot-container {
+            flex: 1;
+            border: none;
+            width: 100%;
+            background: #f8f9fa;
+        }
+
+        .features {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+
+        .feature::before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        /* Floating chat button version */
+        .chat-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .chat-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.2);
+        }
+
+        .chat-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1001;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-modal.active {
+            display: flex;
+        }
+
+        .chat-modal-content {
+            background: white;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 900px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            z-index: 1002;
+        }
+
+        @media (max-width: 768px) {
+            .chatbot-wrapper {
+                height: 100vh;
+                border-radius: 0;
+                margin: 0;
+            }
+            
+            .features {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Full Page Version -->
+    <div class="chatbot-wrapper">
+        <div class="chatbot-header">
+            <h1>🎓 Knowledge Assistant</h1>
+            <p>Ask questions about our institutional documents and policies</p>
+            <button class="close-btn" onclick="closeChat()" style="display: none;">&times;</button>
+        </div>
+        
+        <!-- Replace YOUR_STREAMLIT_APP_URL with your actual Streamlit app URL -->
+        <iframe 
+            src="https://your-streamlit-app-url.streamlit.app/?embed=true"
+            class="chatbot-container"
+            frameborder="0"
+            allow="camera; microphone">
+        </iframe>
+        
+        <div class="features">
+            <div class="feature">AI-Powered Responses</div>
+            <div class="feature">Document Search</div>
+            <div class="feature">Instant Answers</div>
+            <div class="feature">Source Citations</div>
+        </div>
+    </div>
+
+    <!-- Floating Chat Button Version (uncomment to use) -->
+    <!--
+    <button class="chat-button" onclick="openChat()">💬</button>
+    
+    <div class="chat-modal" id="chatModal">
+        <div class="chat-modal-content">
+            <div class="chatbot-header">
+                <h1>🎓 Knowledge Assistant</h1>
+                <p>Ask questions about our institutional documents and policies</p>
+                <button class="close-btn" onclick="closeChat()">&times;</button>
+            </div>
+            
+            <iframe 
+                src="https://collegechatbot-nt7fye8grdfbqmacssrudo.streamlit.app//?embed=true"
+                class="chatbot-container"
+                frameborder="0"
+                allow="camera; microphone">
+            </iframe>
+            
+            <div class="features">
+                <div class="feature">AI-Powered Responses</div>
+                <div class="feature">Document Search</div>
+                <div class="feature">Instant Answers</div>
+                <div class="feature">Source Citations</div>
+            </div>
+        </div>
+    </div>
+    -->
+
+    <script>
+        function openChat() {
+            document.getElementById('chatModal').classList.add('active');
+        }
+
+        function closeChat() {
+            document.getElementById('chatModal').classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('chatModal');
+            if (event.target === modal) {
+                closeChat();
+            }
+        });
+
+        // Escape key to close modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeChat();
+            }
+        });
+    </script>
+</body>
+</html>
