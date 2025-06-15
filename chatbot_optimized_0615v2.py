@@ -346,12 +346,12 @@ class InstitutionalPDFChatbot:
         
         self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(chunk_texts)
 
-    def create_chunks_and_embeddings(self) -> None:
+    def create_chunks_and_embeddings(self) -> bool:
         """Process PDF content into chunks and generate embeddings - consistent with first chatbot."""
         self.text_chunks = []
         if not self.pdf_contents:
             st.error("No PDF content available.")
-            return
+            return False
 
         # Create chunks
         for filename, content in self.pdf_contents.items():
@@ -360,7 +360,7 @@ class InstitutionalPDFChatbot:
         
         if not self.text_chunks:
             st.error("No chunks created from PDFs.")
-            return
+            return False
 
         st.info(f"Creating embeddings for {len(self.text_chunks)} chunks...")
 
@@ -379,10 +379,12 @@ class InstitutionalPDFChatbot:
             self._create_tfidf_index()
             
             st.success("✅ Embeddings and indexes created!")
+            return True
             
         except Exception as e:
             st.error(f"Error generating embeddings: {e}")
             self.chunk_embeddings = None
+            return False
 
     def hybrid_search(self, question: str) -> List[Dict]:
         """
@@ -574,7 +576,8 @@ def initialize_chatbot():
             else:
                 # Load and process documents
                 if chatbot.load_institutional_pdfs():
-                    if chatbot.create_chunks_and_embeddings():
+                    success = chatbot.create_chunks_and_embeddings()
+                    if success:
                         chatbot.save_to_cache(identifier)
                         st.success("✅ Knowledge base initialized and cached")
                     else:
