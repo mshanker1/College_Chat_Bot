@@ -8,7 +8,7 @@ import os
 import json
 from datetime import datetime, timedelta
 import hashlib
-from typing import List, Dict
+from typing import List, Dict, Optional
 import torch
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -28,11 +28,67 @@ except LookupError:
 
 # --- CONFIGURATION ---
 st.set_page_config(
-    page_title="PDF Knowledge Assistant",
+    page_title="Knowledge Assistant",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="collapsed"  # Hide sidebar by default
 )
+
+# Configure for embedding - hide Streamlit UI elements when embedded
+hide_streamlit_style = """
+<style>
+    /* Hide the Streamlit header and menu */
+    header[data-testid="stHeader"] {
+        height: 0px;
+        visibility: hidden;
+    }
+    
+    /* Hide the footer */
+    footer[data-testid="stFooter"] {
+        visibility: hidden;
+    }
+    
+    /* Reduce top padding */
+    .block-container {
+        padding-top: 1rem;
+    }
+    
+    /* Hide sidebar toggle button when collapsed */
+    button[data-testid="collapsedControl"] {
+        display: none;
+    }
+    
+    /* Optional: Hide the main menu hamburger */
+    #MainMenu {
+        visibility: hidden;
+    }
+    
+    /* Optional: Remove "Made with Streamlit" footer */
+    footer:after {
+        content: "";
+        visibility: hidden;
+        display: block;
+        position: relative;
+        padding: 5px;
+        top: 2px;
+    }
+</style>
+"""
+
+# Check if running in embedded mode
+try:
+    query_params = st.query_params
+    if query_params.get("embed") or query_params.get("embedded"):
+        st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+except AttributeError:
+    # Fallback for older Streamlit versions
+    try:
+        query_params = st.experimental_get_query_params()
+        if query_params.get("embed") or query_params.get("embedded"):
+            st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    except:
+        # If query params don't work, apply styles anyway for embedded use
+        st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # --- INSTITUTIONAL CONFIGURATION ---
 class Config:
@@ -48,6 +104,10 @@ class Config:
     # Institutional PDF directory
     INSTITUTIONAL_PDF_DIR = "institutional_pdfs"
     CACHE_DIR = "institutional_cache"
+    
+    # Context-aware settings
+    MAX_CONVERSATION_TOKENS = 2000  # Max tokens to use for conversation history
+    CONTEXT_WINDOW_SIZE = 10  # Number of previous messages to consider
 
 # --- HELPER FUNCTIONS & CLASSES ---
 
@@ -90,7 +150,7 @@ class InstitutionalPDFChatbot:
                 cache_folder = os.path.join(os.getcwd(), "model_cache")
                 os.makedirs(cache_folder, exist_ok=True)
                 
-                # Load model with optimized settings
+                # Load model with settings consistent with first chatbot
                 model = SentenceTransformer(
                     Config.MODEL_NAME, 
                     device=device,
@@ -204,7 +264,7 @@ class InstitutionalPDFChatbot:
             return False
 
     def extract_text_from_pdf(self, pdf_path: str, filename: str) -> None:
-        """Optimized PDF text extraction."""
+        """Enhanced PDF text extraction with better cleaning - consistent with first chatbot."""
         try:
             doc = fitz.open(pdf_path)
             text = ""
@@ -213,24 +273,31 @@ class InstitutionalPDFChatbot:
                 page = doc.load_page(page_num)
                 page_text = page.get_text()
                 
-                # Optimized text cleaning
+                # Better text cleaning - same as first chatbot
+                # Remove excessive whitespace
                 page_text = re.sub(r'\s+', ' ', page_text)
+                # Fix hyphenated words across lines
                 page_text = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', page_text)
+                # Remove header/footer patterns (basic)
                 page_text = re.sub(r'^\d+\s*$', '', page_text, flags=re.MULTILINE)
                 
-                text += page_text + "\n\n"
+                text += page_text + "\n\n"  # Double newline between pages
             
             doc.close()
             
             # Final cleaning
             text = text.strip()
+            # Remove multiple consecutive newlines
             text = re.sub(r'\n{3,}', '\n\n', text)
             
             if len(text) > 100:
                 self.pdf_contents[filename] = text
+                st.success(f"✅ Extracted {len(text):,} characters from {filename}")
+            else:
+                st.warning(f"⚠️ Minimal content extracted from {filename}")
             
         except Exception as e:
-            st.error(f"Error processing {filename}: {e}")
+            st.error(f"❌ Error processing {filename}: {e}")
 
     def load_institutional_pdfs(self) -> bool:
         """Load all PDFs from the institutional directory."""
@@ -242,19 +309,30 @@ class InstitutionalPDFChatbot:
         if not pdf_files:
             return False
         
-        for pdf_path in pdf_files:
+        progress_bar = st.progress(0, text="Processing files...")
+        
+        for i, pdf_path in enumerate(pdf_files):
             filename = os.path.basename(pdf_path)
             self.extract_text_from_pdf(pdf_path, filename)
+            
+            progress_bar.progress((i + 1) / len(pdf_files), 
+                                text=f"Processing {filename} ({i+1}/{len(pdf_files)})")
+        
+        progress_bar.empty()
         
         return len(self.pdf_contents) > 0
 
     def smart_chunk_text(self, text: str, source: str) -> List[Dict]:
-        """Optimized text chunking."""
+        """
+        Improved chunking that preserves semantic boundaries - consistent with first chatbot.
+        """
         chunks = []
         
+        # Split into sentences first
         try:
             sentences = sent_tokenize(text)
         except:
+            # Fallback if NLTK fails
             sentences = re.split(r'(?<=[.!?])\s+', text)
         
         current_chunk = []
@@ -267,10 +345,11 @@ class InstitutionalPDFChatbot:
                 
             sentence_length = len(sentence)
             
+            # If adding this sentence would exceed chunk size, save current chunk
             if current_length + sentence_length > Config.CHUNK_SIZE and current_chunk:
                 chunk_text = ' '.join(current_chunk)
                 
-                # Add overlap
+                # Add overlap from previous chunk if it exists
                 if chunks and Config.CHUNK_OVERLAP > 0:
                     prev_chunk_words = chunks[-1]['text'].split()
                     overlap_words = prev_chunk_words[-min(Config.CHUNK_OVERLAP//5, len(prev_chunk_words)):]
@@ -311,7 +390,7 @@ class InstitutionalPDFChatbot:
         return chunks
 
     def _create_tfidf_index(self):
-        """Create optimized TF-IDF index."""
+        """Create TF-IDF index for keyword-based search - consistent with first chatbot."""
         if not self.text_chunks:
             return
             
@@ -320,17 +399,18 @@ class InstitutionalPDFChatbot:
         self.tfidf_vectorizer = TfidfVectorizer(
             max_features=5000,
             stop_words='english',
-            ngram_range=(1, 2),
+            ngram_range=(1, 2),  # Include bigrams
             min_df=2,
             max_df=0.8
         )
         
         self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(chunk_texts)
 
-    def create_chunks_and_embeddings(self) -> None:
-        """Optimized chunk and embedding creation."""
+    def create_chunks_and_embeddings(self) -> bool:
+        """Process PDF content into chunks and generate embeddings - consistent with first chatbot."""
         self.text_chunks = []
         if not self.pdf_contents:
+            st.error("No PDF content available.")
             return False
 
         # Create chunks
@@ -339,88 +419,116 @@ class InstitutionalPDFChatbot:
             self.text_chunks.extend(file_chunks)
         
         if not self.text_chunks:
+            st.error("No chunks created from PDFs.")
             return False
 
-        # Generate embeddings with optimized batching
+        st.info(f"Creating embeddings for {len(self.text_chunks)} chunks...")
+
+        # Generate semantic embeddings - consistent with first chatbot
         chunk_texts = [chunk['text'] for chunk in self.text_chunks]
         try:
-            embeddings_list = []
-            
-            for i in range(0, len(chunk_texts), Config.BATCH_SIZE):
-                batch = chunk_texts[i:i + Config.BATCH_SIZE]
-                
-                # Optimized retry logic
-                for attempt in range(Config.MAX_RETRIES):
-                    try:
-                        batch_embeddings = self.embedding_model.encode(
-                            batch, 
-                            convert_to_tensor=True,
-                            show_progress_bar=False,
-                            batch_size=len(batch),
-                            normalize_embeddings=True  # Normalize for better similarity
-                        )
-                        embeddings_list.append(batch_embeddings)
-                        break
-                    except Exception as e:
-                        if attempt == Config.MAX_RETRIES - 1:
-                            raise e
-                        else:
-                            time.sleep(2 ** attempt)
-            
-            # Combine all embeddings
-            self.chunk_embeddings = torch.cat(embeddings_list, dim=0)
+            self.chunk_embeddings = self.embedding_model.encode(
+                chunk_texts, 
+                convert_to_tensor=True, 
+                show_progress_bar=True,
+                batch_size=32  # Process in batches for better memory usage
+                # Removed normalize_embeddings=True to match first chatbot
+            )
             
             # Create TF-IDF index
             self._create_tfidf_index()
             
+            st.success("✅ Embeddings and indexes created!")
             return True
             
         except Exception as e:
             st.error(f"Error generating embeddings: {e}")
+            self.chunk_embeddings = None
             return False
 
-    def hybrid_search(self, question: str) -> List[Dict]:
-        """Optimized hybrid search with fixed parameters."""
-        if self.chunk_embeddings is None or len(self.text_chunks) == 0:
+    def extract_context_keywords(self, conversation_history: List[Dict]) -> List[str]:
+        """Extract important keywords from recent conversation for enhanced search."""
+        if not conversation_history:
             return []
-            
+        
+        # Get recent messages (last 4-6 messages)
+        recent_messages = conversation_history[-6:]
+        
+        # Extract nouns and important terms from recent conversation
+        keywords = []
+        for msg in recent_messages:
+            if msg['role'] == 'assistant':
+                # Extract quoted terms, document names, and emphasized terms
+                quotes = re.findall(r'"([^"]*)"', msg['content'])
+                keywords.extend(quotes)
+                
+                # Extract document references
+                doc_refs = re.findall(r'\[([^\]]+\.pdf)\]', msg['content'])
+                keywords.extend(doc_refs)
+                
+                # Extract bolded terms
+                bold_terms = re.findall(r'\*\*([^*]+)\*\*', msg['content'])
+                keywords.extend(bold_terms)
+        
+        return list(set(keywords))  # Remove duplicates
+
+    def context_aware_search(self, question: str, conversation_history: List[Dict] = None) -> List[Dict]:
+        """
+        Enhanced search that considers conversation context.
+        """
+        if self.chunk_embeddings is None or len(self.text_chunks) == 0:
+            st.warning("No embeddings available for search.")
+            return []
+        
+        # Extract context keywords from conversation
+        context_keywords = []
+        if conversation_history:
+            context_keywords = self.extract_context_keywords(conversation_history)
+        
+        # Enhance the question with context if it's a follow-up
+        enhanced_question = question
+        if context_keywords and any(word in question.lower() for word in ['that', 'this', 'it', 'those', 'these', 'more', 'else']):
+            # This seems to be a follow-up question
+            enhanced_question = f"{question} {' '.join(context_keywords[:3])}"
+        
         try:
-            # Encode question with retry
-            question_embedding = None
-            for attempt in range(Config.MAX_RETRIES):
-                try:
-                    question_embedding = self.embedding_model.encode(
-                        question, 
-                        convert_to_tensor=True,
-                        normalize_embeddings=True
-                    )
-                    break
-                except Exception as e:
-                    if attempt == Config.MAX_RETRIES - 1:
-                        return []
-                    time.sleep(2 ** attempt)
-            
-            # Semantic similarity
+            # Semantic search with enhanced question
+            question_embedding = self.embedding_model.encode(enhanced_question, convert_to_tensor=True)
             semantic_scores = util.cos_sim(question_embedding, self.chunk_embeddings)[0]
             
-            # Keyword search
+            # Keyword search (TF-IDF)
             keyword_scores = np.zeros(len(self.text_chunks))
             if self.tfidf_vectorizer is not None and self.tfidf_matrix is not None:
-                question_tfidf = self.tfidf_vectorizer.transform([question])
+                question_tfidf = self.tfidf_vectorizer.transform([enhanced_question])
                 keyword_similarities = cosine_similarity(question_tfidf, self.tfidf_matrix)[0]
                 keyword_scores = keyword_similarities
             
-            # Optimized score combination
+            # Boost scores for chunks mentioned in recent conversation
+            if conversation_history and len(conversation_history) > 0:
+                recent_sources = set()
+                for msg in conversation_history[-4:]:  # Look at last 4 messages
+                    if msg['role'] == 'assistant':
+                        # Extract source references
+                        sources = re.findall(r'\[([^\]]+\.pdf)\]', msg['content'])
+                        recent_sources.update(sources)
+                
+                # Boost chunks from recently discussed sources
+                for i, chunk in enumerate(self.text_chunks):
+                    if chunk['source'] in recent_sources:
+                        semantic_scores[i] = semantic_scores[i] * 1.2  # 20% boost
+            
+            # Combine scores (weighted average)
             semantic_weight = 0.7
             keyword_weight = 0.3
             
+            # Normalize scores to 0-1 range
             semantic_scores_norm = (semantic_scores.cpu().numpy() + 1) / 2
             keyword_scores_norm = keyword_scores
             
             combined_scores = (semantic_weight * semantic_scores_norm + 
                              keyword_weight * keyword_scores_norm)
             
-            # Get top results with fixed count
+            # Get top results
             top_indices = np.argsort(combined_scores)[-Config.SEARCH_RESULTS:][::-1]
             
             relevant_chunks = []
@@ -431,56 +539,122 @@ class InstitutionalPDFChatbot:
                 chunk['combined_score'] = combined_scores[idx]
                 relevant_chunks.append(chunk)
             
-            # Filter low scores
+            # Filter out very low scores
             relevant_chunks = [chunk for chunk in relevant_chunks 
-                             if chunk['combined_score'] > 0.15]  # Slightly higher threshold
+                             if chunk['combined_score'] > 0.1]
             
             return relevant_chunks
             
         except Exception as e:
+            st.error(f"Error in context-aware search: {e}")
             return []
 
-    def generate_answer(self, question: str, context_chunks: List[Dict], client: OpenAI) -> str:
-        """Optimized answer generation."""
-        if not context_chunks:
-            return "I couldn't find relevant information in the institutional documents to answer your question."
+    def summarize_conversation_context(self, conversation_history: List[Dict]) -> str:
+        """Create a summary of the conversation context for the prompt."""
+        if not conversation_history:
+            return ""
         
-        # Prepare context efficiently
+        # Take last few exchanges
+        recent_history = conversation_history[-Config.CONTEXT_WINDOW_SIZE:]
+        
+        context_summary = "Previous conversation:\n"
+        for msg in recent_history:
+            if msg['role'] == 'user':
+                context_summary += f"User asked: {msg['content']}\n"
+            else:
+                # Summarize assistant responses to save tokens
+                response = msg['content']
+                if len(response) > 200:
+                    # Extract key points
+                    first_sentence = response.split('.')[0] + '.'
+                    context_summary += f"Assistant explained: {first_sentence}...\n"
+                else:
+                    context_summary += f"Assistant explained: {response}\n"
+        
+        return context_summary
+
+    def generate_answer(self, question: str, context_chunks: List[Dict], client: OpenAI, 
+                       conversation_history: List[Dict] = None) -> str:
+        """Generate answer with conversation context awareness."""
+        if not context_chunks:
+            return "I couldn't find relevant information in the PDF documents to answer your question."
+        
+        # Prepare document context
         context_str = ""
         sources = set()
         
-        for i, chunk in enumerate(context_chunks[:8]):  # Limit context for efficiency
-            context_str += f"=== Source {i+1} ({chunk['source']}) ===\n"
+        for i, chunk in enumerate(context_chunks):
+            context_str += f"=== Context {i+1} (from {chunk['source']}) ===\n"
             context_str += f"{chunk['text']}\n\n"
             sources.add(chunk['source'])
         
-        # Optimized prompt
-        prompt = f"""Answer the question based on the provided institutional documents.
+        # Prepare conversation context
+        conversation_context = ""
+        if conversation_history and len(conversation_history) > 0:
+            conversation_context = self.summarize_conversation_context(conversation_history)
+        
+        # Enhanced context-aware prompt
+        prompt = f"""You are an expert document analyst with access to institutional PDF documents. You are having an ongoing conversation with a user.
 
-CONTEXT:
+{conversation_context}
+
+CURRENT QUESTION: {question}
+
+CONTEXT FROM DOCUMENTS:
 {context_str}
 
-QUESTION: {question}
-
-Provide a comprehensive answer using only the information above. Cite sources in brackets [document.pdf]. If insufficient information is available, state this clearly.
+INSTRUCTIONS:
+1. Answer the current question based on the provided document context
+2. Consider the conversation history to understand what the user is referring to
+3. If the current question refers to something discussed earlier (like "that", "it", "those"), make the connection clear
+4. Maintain consistency with your previous answers
+5. If the context doesn't contain sufficient information, clearly state what's missing
+6. Cite sources by mentioning the document name in brackets, e.g., [document.pdf]
+7. Be specific and detailed in your response
+8. If this is a follow-up question, acknowledge the connection to the previous discussion
 
 Answer:"""
 
         try:
+            # Build message history for better context
+            messages = [
+                {"role": "system", "content": "You are a helpful institutional knowledge assistant that maintains context across conversations. You answer questions based on provided PDF documents while keeping track of the conversation flow."}
+            ]
+            
+            # Include a few recent exchanges for additional context (if they exist)
+            if conversation_history and len(conversation_history) > 2:
+                # Add last 2-3 exchanges to provide context to the model
+                recent_exchanges = conversation_history[-(min(6, len(conversation_history))):]
+                for msg in recent_exchanges:
+                    if msg['role'] == 'user':
+                        messages.append({"role": "user", "content": msg['content']})
+                    else:
+                        # Truncate long responses to save tokens
+                        content = msg['content']
+                        if len(content) > 500:
+                            content = content[:500] + "..."
+                        messages.append({"role": "assistant", "content": content})
+            
+            # Add the current prompt
+            messages.append({"role": "user", "content": prompt})
+            
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are an institutional knowledge assistant. Answer questions accurately based on provided documents and always cite sources."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=1500,  # Reduced for efficiency
+                messages=messages,
+                max_tokens=2000,
                 temperature=0.1,
-                top_p=0.95,
-                frequency_penalty=0.1
+                top_p=0.9,
+                frequency_penalty=0.1,
+                presence_penalty=0.0
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
             return f"Error generating response: {e}"
+
+    # Keep the original hybrid_search method for backward compatibility
+    def hybrid_search(self, question: str) -> List[Dict]:
+        """Original hybrid search method - now calls context_aware_search."""
+        return self.context_aware_search(question, conversation_history=None)
 
 
 # --- STREAMLIT UI ---
@@ -569,7 +743,8 @@ def initialize_chatbot():
             else:
                 # Load and process documents
                 if chatbot.load_institutional_pdfs():
-                    if chatbot.create_chunks_and_embeddings():
+                    success = chatbot.create_chunks_and_embeddings()
+                    if success:
                         chatbot.save_to_cache(identifier)
                         st.success("✅ Knowledge base initialized and cached")
                     else:
@@ -628,12 +803,23 @@ def main():
         st.text(f"Chunk Size: {Config.CHUNK_SIZE}")
         st.text(f"Overlap: {Config.CHUNK_OVERLAP}")
         st.text(f"Model: {Config.MODEL_NAME}")
+        st.text(f"Context Window: {Config.CONTEXT_WINDOW_SIZE} messages")
         
         if st.session_state.messages:
             st.markdown("---")
-            if st.button("🗑️ Clear Chat History"):
-                st.session_state.messages = []
-                st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🗑️ Clear Chat History"):
+                    st.session_state.messages = []
+                    st.rerun()
+            with col2:
+                if st.button("🆕 New Topic"):
+                    # Add a separator message
+                    st.session_state.messages.append({
+                        "role": "system", 
+                        "content": "--- New Topic Started ---"
+                    })
+                    st.rerun()
     
     # Display available documents
     if st.session_state.messages == []:
@@ -664,8 +850,13 @@ def main():
     
     # Display chat history
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        if message["role"] == "system":
+            # Display system messages differently
+            st.markdown(f"<div style='text-align: center; color: gray; margin: 20px 0;'>{message['content']}</div>", 
+                       unsafe_allow_html=True)
+        else:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
     
     # Chat input
     if question := st.chat_input("Ask about institutional documents..."):
@@ -675,11 +866,22 @@ def main():
         with st.chat_message("user"):
             st.markdown(question)
         
-        # Generate response
+        # Generate response with context awareness
         with st.chat_message("assistant"):
             with st.spinner("Searching knowledge base..."):
-                relevant_chunks = chatbot.hybrid_search(question)
-                answer = chatbot.generate_answer(question, relevant_chunks, openai_client)
+                # Use context-aware search
+                relevant_chunks = chatbot.context_aware_search(
+                    question, 
+                    conversation_history=st.session_state.messages
+                )
+                
+                # Generate answer with conversation history
+                answer = chatbot.generate_answer(
+                    question, 
+                    relevant_chunks, 
+                    openai_client,
+                    conversation_history=st.session_state.messages
+                )
                 st.markdown(answer)
         
         # Add assistant response
