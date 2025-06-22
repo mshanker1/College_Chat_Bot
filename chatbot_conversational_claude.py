@@ -93,9 +93,9 @@ except AttributeError:
 # --- INSTITUTIONAL CONFIGURATION ---
 class Config:
     """Optimized configuration for institutional deployment."""
-    CHUNK_SIZE = 800
-    CHUNK_OVERLAP = 150  # Your preferred setting
-    SEARCH_RESULTS = 13  # Your preferred setting
+    CHUNK_SIZE = 1200
+    CHUNK_OVERLAP = 200  # Your preferred setting
+    SEARCH_RESULTS = 20  # Your preferred setting
     MODEL_NAME = 'all-MiniLM-L6-v2'
     CACHE_DURATION_DAYS = 90
     BATCH_SIZE = 32  # Larger batch size for efficiency
