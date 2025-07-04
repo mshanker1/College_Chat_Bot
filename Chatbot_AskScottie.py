@@ -29,7 +29,7 @@ except LookupError:
 # --- CONFIGURATION ---
 st.set_page_config(
     page_title="Ask Scottie - Maryville College Academic Assistant",
-    page_icon="🐕",
+    page_icon="🏴󠁧󠁢󠁳󠁣󠁴󠁿",
     layout="wide",
     initial_sidebar_state="collapsed"  # Hide sidebar by default
 )
@@ -40,16 +40,16 @@ maryville_embedded_style = """
     /* Import Maryville College colors and fonts */
     @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
     
-    /* Maryville College Color Palette */
+    /* Maryville College Official Color Palette */
     :root {
-        --maryville-red: #B71C1C;
-        --maryville-orange: #FF5722;
-        --maryville-gold: #FFC107;
-        --maryville-green: #4CAF50;
-        --maryville-blue: #1976D2;
-        --maryville-navy: #0D47A1;
-        --maryville-gray: #757575;
+        --maryville-maroon: #5B0F1B;
+        --maryville-orange: #EC5E1A;
+        --maryville-white: #FFFFFF;
         --maryville-light-gray: #F5F5F5;
+        --maryville-dark-gray: #666666;
+        --maryville-accent-blue: #1976D2;
+        --maryville-success-green: #4CAF50;
+        --maryville-warning-gold: #FFC107;
     }
     
     /* Hide the Streamlit header and menu */
@@ -67,10 +67,10 @@ maryville_embedded_style = """
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
-        background: linear-gradient(135deg, var(--maryville-light-gray) 0%, #ffffff 100%);
-        border: 3px solid var(--maryville-red);
+        background: linear-gradient(135deg, var(--maryville-light-gray) 0%, var(--maryville-white) 100%);
+        border: 3px solid var(--maryville-maroon);
         border-radius: 15px;
-        box-shadow: 0 8px 32px rgba(183, 28, 28, 0.1);
+        box-shadow: 0 8px 32px rgba(91, 15, 27, 0.1);
         font-family: 'Open Sans', sans-serif;
     }
     
@@ -96,7 +96,7 @@ maryville_embedded_style = """
     
     /* Style the main title with Maryville branding */
     .main h1 {
-        color: var(--maryville-red);
+        color: var(--maryville-maroon);
         font-family: 'Open Sans', sans-serif;
         font-weight: 700;
         text-align: center;
@@ -107,7 +107,7 @@ maryville_embedded_style = """
     
     /* Style subheaders */
     .main h2, .main h3 {
-        color: var(--maryville-navy);
+        color: var(--maryville-maroon);
         font-family: 'Open Sans', sans-serif;
         font-weight: 600;
     }
@@ -115,25 +115,25 @@ maryville_embedded_style = """
     /* Chat message styling */
     .stChatMessage {
         border-radius: 10px;
-        border: 1px solid var(--maryville-gray);
-        background-color: #ffffff;
+        border: 1px solid var(--maryville-dark-gray);
+        background-color: var(--maryville-white);
     }
     
     /* User message styling */
     .stChatMessage[data-testid="user-message"] {
-        background: linear-gradient(135deg, var(--maryville-blue), var(--maryville-navy));
+        background: linear-gradient(135deg, var(--maryville-maroon), var(--maryville-orange));
         color: white;
     }
     
     /* Assistant message styling */
     .stChatMessage[data-testid="assistant-message"] {
-        background: linear-gradient(135deg, #ffffff, var(--maryville-light-gray));
+        background: linear-gradient(135deg, var(--maryville-white), var(--maryville-light-gray));
         border-left: 4px solid var(--maryville-orange);
     }
     
     /* Button styling */
     .stButton > button {
-        background: linear-gradient(135deg, var(--maryville-red), var(--maryville-orange));
+        background: linear-gradient(135deg, var(--maryville-maroon), var(--maryville-orange));
         color: white;
         border: none;
         border-radius: 8px;
@@ -143,61 +143,61 @@ maryville_embedded_style = """
     }
     
     .stButton > button:hover {
-        background: linear-gradient(135deg, var(--maryville-orange), var(--maryville-red));
+        background: linear-gradient(135deg, var(--maryville-orange), var(--maryville-maroon));
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(183, 28, 28, 0.3);
+        box-shadow: 0 4px 12px rgba(91, 15, 27, 0.3);
     }
     
     /* Input styling */
     .stTextInput > div > div > input {
-        border: 2px solid var(--maryville-gray);
+        border: 2px solid var(--maryville-dark-gray);
         border-radius: 8px;
         font-family: 'Open Sans', sans-serif;
     }
     
     .stTextInput > div > div > input:focus {
-        border-color: var(--maryville-red);
-        box-shadow: 0 0 0 2px rgba(183, 28, 28, 0.2);
+        border-color: var(--maryville-maroon);
+        box-shadow: 0 0 0 2px rgba(91, 15, 27, 0.2);
     }
     
     /* Info boxes */
     .stInfo {
         background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
-        border-left: 4px solid var(--maryville-blue);
+        border-left: 4px solid var(--maryville-accent-blue);
         border-radius: 8px;
     }
     
     /* Success boxes */
     .stSuccess {
         background: linear-gradient(135deg, #E8F5E8, #C8E6C9);
-        border-left: 4px solid var(--maryville-green);
+        border-left: 4px solid var(--maryville-success-green);
         border-radius: 8px;
     }
     
     /* Warning boxes */
     .stWarning {
         background: linear-gradient(135deg, #FFF8E1, #FFECB3);
-        border-left: 4px solid var(--maryville-gold);
+        border-left: 4px solid var(--maryville-warning-gold);
         border-radius: 8px;
     }
     
     /* Error boxes */
     .stError {
-        background: linear-gradient(135deg, #FFEBEE, #FFCDD2);
-        border-left: 4px solid var(--maryville-red);
+        background: linear-gradient(135deg, #FFF5F5, #FFEBEE);
+        border-left: 4px solid var(--maryville-maroon);
         border-radius: 8px;
     }
     
     /* Sidebar styling */
     .css-1d391kg {
-        background: linear-gradient(180deg, var(--maryville-navy), var(--maryville-blue));
+        background: linear-gradient(180deg, var(--maryville-maroon), var(--maryville-orange));
         color: white;
     }
     
     /* Metrics styling */
     .metric-container {
-        background: white;
-        border: 1px solid var(--maryville-gray);
+        background: var(--maryville-white);
+        border: 1px solid var(--maryville-dark-gray);
         border-radius: 8px;
         padding: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -1034,14 +1034,15 @@ def initialize_chatbot():
     return st.session_state.chatbot
 
 def main():
-    # Add Maryville College header with logo placeholder
+    # Add Maryville College header with Scottish Terrier mascot
     st.markdown("""
     <div style="text-align: center; margin-bottom: 30px;">
-        <div style="display: inline-block; background: linear-gradient(135deg, #B71C1C, #FF5722); 
+        <div style="display: inline-block; background: linear-gradient(135deg, #5B0F1B, #EC5E1A); 
                     color: white; padding: 20px 40px; border-radius: 15px; margin-bottom: 20px;
-                    box-shadow: 0 4px 15px rgba(183, 28, 28, 0.3);">
-            <h1 style="margin: 0; font-size: 2.5em; font-weight: 700;">🐕 Ask Scottie</h1>
-            <p style="margin: 10px 0 0 0; font-size: 1.2em; opacity: 0.9;">Maryville College Academic Catalog Assistant</p>
+                    box-shadow: 0 4px 15px rgba(91, 15, 27, 0.3);">
+            <h1 style="margin: 0; font-size: 2.5em; font-weight: 700;">🐕‍🦺 Ask Scottie</h1>
+            <p style="margin: 5px 0; font-size: 1.1em; opacity: 0.9;">Your Scottish Terrier Academic Assistant</p>
+            <p style="margin: 10px 0 0 0; font-size: 1.2em; opacity: 0.9;">Maryville College Academic Catalog Helper</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1051,7 +1052,7 @@ def main():
     <div style="background: linear-gradient(135deg, #E3F2FD, #BBDEFB); 
                 border: 2px solid #1976D2; border-radius: 10px; padding: 15px; margin: 20px 0;
                 text-align: center;">
-        <p style="margin: 0; color: #0D47A1; font-weight: 600;">
+        <p style="margin: 0; color: #5B0F1B; font-weight: 600;">
             📚 I can only answer questions about the <strong>Maryville College Academic Catalog</strong>. 
             For other inquiries, please contact the appropriate college department.
         </p>
@@ -1072,7 +1073,7 @@ def main():
         # Show some demo content
         st.markdown("""
         <div style="background: white; border: 2px solid #FFC107; border-radius: 10px; padding: 20px; margin: 20px 0;">
-            <h3 style="color: #B71C1C; text-align: center; margin-top: 0;">🔧 Ask Scottie System Status</h3>
+            <h3 style="color: #5B0F1B; text-align: center; margin-top: 0;">🔧 Ask Scottie System Status</h3>
         """, unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns(3)
@@ -1095,8 +1096,8 @@ def main():
     with st.sidebar:
         st.markdown("""
         <div style="text-align: center; padding: 20px; background: white; border-radius: 10px; margin-bottom: 20px;">
-            <h2 style="color: #B71C1C; margin: 0;">🐕 Ask Scottie</h2>
-            <p style="color: #0D47A1; margin: 5px 0 0 0;">Academic Catalog Assistant</p>
+            <h2 style="color: #5B0F1B; margin: 0;">🐕‍🦺 Ask Scottie</h2>
+            <p style="color: #5B0F1B; margin: 5px 0 0 0;">Academic Catalog Assistant</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1135,8 +1136,8 @@ def main():
     # Display available documents with Maryville styling
     if st.session_state.messages == []:
         st.markdown("""
-        <div style="background: white; border: 2px solid #FF5722; border-radius: 10px; padding: 20px; margin: 20px 0;">
-            <h3 style="color: #B71C1C; text-align: center; margin-top: 0;">📚 Available Academic Catalog Documents</h3>
+        <div style="background: white; border: 2px solid #EC5E1A; border-radius: 10px; padding: 20px; margin: 20px 0;">
+            <h3 style="color: #5B0F1B; text-align: center; margin-top: 0;">📚 Available Academic Catalog Documents</h3>
         """, unsafe_allow_html=True)
         
         doc_names = list(chatbot.pdf_contents.keys())
@@ -1156,7 +1157,7 @@ def main():
         
         st.markdown("""
         <div style="background: white; border: 2px solid #4CAF50; border-radius: 10px; padding: 20px; margin: 20px 0;">
-            <h3 style="color: #B71C1C; text-align: center; margin-top: 0;">💡 Try These Sample Questions</h3>
+            <h3 style="color: #5B0F1B; text-align: center; margin-top: 0;">💡 Try These Sample Questions</h3>
         """, unsafe_allow_html=True)
         
         sample_questions = [
@@ -1171,8 +1172,29 @@ def main():
         for i, question in enumerate(sample_questions):
             with cols[i % 2]:
                 if st.button(question, key=f"sample_{i}"):
-                    # Simulate user asking the question
+                    # Add user message
                     st.session_state.messages.append({"role": "user", "content": question})
+                    
+                    # Generate response immediately
+                    with st.spinner("🐕‍🦺 Scottie is searching the Academic Catalog..."):
+                        # Use context-aware search
+                        relevant_chunks = chatbot.context_aware_search(
+                            question, 
+                            conversation_history=st.session_state.messages
+                        )
+                        
+                        # Generate answer with conversation history
+                        answer = chatbot.generate_answer(
+                            question, 
+                            relevant_chunks, 
+                            openai_client,
+                            conversation_history=st.session_state.messages
+                        )
+                    
+                    # Add assistant response
+                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                    
+                    # Rerun to show the conversation
                     st.rerun()
         
         st.markdown("</div>", unsafe_allow_html=True)
@@ -1197,7 +1219,7 @@ def main():
         
         # Generate response with context awareness
         with st.chat_message("assistant"):
-            with st.spinner("🐕 Scottie is searching the Academic Catalog..."):
+            with st.spinner("🐕‍🦺 Scottie is searching the Academic Catalog..."):
                 # Use context-aware search
                 relevant_chunks = chatbot.context_aware_search(
                     question, 
