@@ -323,8 +323,154 @@ maryville_popout_style = """
 </style>
 """
 
-# Apply pop-out chatbot styling
-st.markdown(maryville_popout_style, unsafe_allow_html=True)
+# Apply pop-out chatbot styling conditionally
+# Check if we're in embedded mode
+try:
+    query_params = st.query_params
+    is_embedded = query_params.get("embed") or query_params.get("embedded")
+except AttributeError:
+    # Fallback for older Streamlit versions
+    try:
+        query_params = st.experimental_get_query_params()
+        is_embedded = query_params.get("embed") or query_params.get("embedded")
+    except:
+        is_embedded = False
+
+# Apply different styles based on mode
+if is_embedded:
+    st.markdown(maryville_popout_style, unsafe_allow_html=True)
+else:
+    # Standalone mode - more visible styling
+    standalone_style = """
+    <style>
+        /* Import Maryville College colors and fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+        
+        /* Maryville College Official Color Palette */
+        :root {
+            --maryville-maroon: #5B0F1B;
+            --maryville-orange: #EC5E1A;
+            --maryville-white: #FFFFFF;
+            --maryville-light-gray: #F5F5F5;
+            --maryville-dark-gray: #666666;
+            --maryville-accent-blue: #1976D2;
+            --maryville-success-green: #4CAF50;
+            --maryville-warning-gold: #FFC107;
+        }
+        
+        /* Main container styling for standalone */
+        .main .block-container {
+            max-width: 800px;
+            padding: 2rem 1rem;
+            background: linear-gradient(135deg, var(--maryville-light-gray) 0%, var(--maryville-white) 100%);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(91, 15, 27, 0.1);
+            border: 2px solid var(--maryville-maroon);
+            font-family: 'Open Sans', sans-serif;
+        }
+        
+        /* Header styling */
+        .main h1 {
+            color: var(--maryville-maroon);
+            text-align: center;
+            font-family: 'Open Sans', sans-serif;
+            font-weight: 700;
+            border-bottom: 3px solid var(--maryville-orange);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        /* Chat messages styling */
+        .stChatMessage {
+            border-radius: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* User message styling */
+        .stChatMessage[data-testid="user-message"] {
+            background: linear-gradient(135deg, var(--maryville-maroon), var(--maryville-orange));
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        /* Assistant message styling */
+        .stChatMessage[data-testid="assistant-message"] {
+            background: var(--maryville-white);
+            border: 1px solid var(--maryville-light-gray);
+            border-left: 4px solid var(--maryville-orange);
+            color: var(--maryville-dark-gray);
+            border-bottom-left-radius: 4px;
+        }
+        
+        /* Button styling */
+        .stButton > button {
+            background: linear-gradient(135deg, var(--maryville-maroon), var(--maryville-orange));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Open Sans', sans-serif;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-bottom: 5px;
+        }
+        
+        .stButton > button:hover {
+            background: linear-gradient(135deg, var(--maryville-orange), var(--maryville-maroon));
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(91, 15, 27, 0.3);
+        }
+        
+        /* Info sections */
+        .info-section {
+            background: var(--maryville-white);
+            border: 1px solid var(--maryville-light-gray);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .info-section h3 {
+            color: var(--maryville-maroon);
+            margin: 0 0 10px 0;
+        }
+        
+        /* Source indicators */
+        .source-pdf {
+            background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+            border-left: 3px solid var(--maryville-accent-blue);
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        
+        .source-web {
+            background: linear-gradient(135deg, #E8F5E8, #C8E6C9);
+            border-left: 3px solid var(--maryville-success-green);
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        
+        /* Status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: var(--maryville-success-green);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+    """
+    st.markdown(standalone_style, unsafe_allow_html=True)
 
 # --- INSTITUTIONAL CONFIGURATION ---
 class Config:
