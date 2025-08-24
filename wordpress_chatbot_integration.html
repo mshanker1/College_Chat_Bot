@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ask Scottie Chatbot Integration</title>
+    <style>
+        /* Chatbot Button Styles */
+        .scottie-chat-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #5B0F1B, #EC5E1A);
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+
+        .scottie-chat-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .scottie-chat-button.active {
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 4px 12px rgba(236, 94, 26, 0.3); }
+            50% { box-shadow: 0 4px 20px rgba(236, 94, 26, 0.6); }
+            100% { box-shadow: 0 4px 12px rgba(236, 94, 26, 0.3); }
+        }
+
+        .scottie-chat-icon {
+            width: 35px;
+            height: 35px;
+            fill: white;
+        }
+
+        .scottie-close-icon {
+            width: 30px;
+            height: 30px;
+            fill: white;
+            display: none;
+        }
+
+        .scottie-chat-button.active .scottie-chat-icon {
+            display: none;
+        }
+
+        .scottie-chat-button.active .scottie-close-icon {
+            display: block;
+        }
+
+        /* Chat Window Styles */
+        .scottie-chat-window {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 400px;
+            height: 600px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            z-index: 9997;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .scottie-chat-window.active {
+            display: flex;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Chat Header */
+        .scottie-chat-header {
+            background: linear-gradient(135deg, #5B0F1B, #EC5E1A);
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .scottie-chat-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .scottie-chat-title h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .scottie-status-indicator {
+            width: 8px;
+            height: 8px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Chat Body */
+        .scottie-chat-body {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background: #fafafa;
+        }
+
+        .scottie-chat-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Loading Spinner */
+        .scottie-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .scottie-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #EC5E1A;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 480px) {
+            .scottie-chat-window {
+                width: 100%;
+                height: 100%;
+                right: 0;
+                bottom: 0;
+                border-radius: 0;
+            }
+
+            .scottie-chat-button {
+                bottom: 15px;
+                right: 15px;
+                width: 55px;
+                height: 55px;
+            }
+
+            .scottie-chat-header {
+                border-radius: 0;
+            }
+        }
+
+        @media (max-width: 768px) and (min-width: 481px) {
+            .scottie-chat-window {
+                width: 90%;
+                height: 70vh;
+                right: 5%;
+            }
+        }
+
+        /* Notification Badge */
+        .scottie-notification {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #FF5722;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        /* Tooltip */
+        .scottie-tooltip {
+            position: absolute;
+            bottom: 70px;
+            right: 0;
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            font-size: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .scottie-chat-button:hover .scottie-tooltip {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Chatbot Button -->
+    <div class="scottie-chat-button" id="scottieChatButton" aria-label="Open Ask Scottie chat">
+        <!-- Chat Icon -->
+        <svg class="scottie-chat-icon" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L1 23l6.71-1.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.41 0-2.73-.36-3.88-.99l-.28-.14-2.92.86.86-2.92-.14-.28C5.01 14.73 4.65 13.41 4.65 12c0-4.42 3.58-8 8-8s8 3.58 8 8-3.58 8-8 8z"/>
+            <circle cx="8.5" cy="12" r="1"/>
+            <circle cx="12" cy="12" r="1"/>
+            <circle cx="15.5" cy="12" r="1"/>
+        </svg>
+        <!-- Close Icon -->
+        <svg class="scottie-close-icon" viewBox="0 0 24 24">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+        <span class="scottie-tooltip">Ask about the Academic Catalog</span>
+    </div>
+
+    <!-- Chat Window -->
+    <div class="scottie-chat-window" id="scottieChatWindow">
+        <div class="scottie-chat-header">
+            <div class="scottie-chat-title">
+                <span>🐕‍🦺</span>
+                <h3>Ask Scottie</h3>
+                <div class="scottie-status-indicator"></div>
+            </div>
+            <span style="font-size: 12px; opacity: 0.9;">Academic Catalog Assistant</span>
+        </div>
+        <div class="scottie-chat-body">
+            <div class="scottie-loading" id="scottieLoading">
+                <div class="scottie-spinner"></div>
+                <p style="color: #666; font-size: 14px;">Loading Ask Scottie...</p>
+            </div>
+            <iframe 
+                id="scottieChatIframe"
+                class="scottie-chat-iframe"
+                src=""
+                title="Ask Scottie Chatbot"
+                style="display: none;"
+            ></iframe>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // Configuration
+            const STREAMLIT_APP_URL = 'https://askscottie.streamlit.app/?embed=true';
+            
+            // Get elements
+            const chatButton = document.getElementById('scottieChatButton');
+            const chatWindow = document.getElementById('scottieChatWindow');
+            const chatIframe = document.getElementById('scottieChatIframe');
+            const loading = document.getElementById('scottieLoading');
+            
+            let isOpen = false;
+            let iframeLoaded = false;
+
+            // Toggle chat window
+            function toggleChat() {
+                isOpen = !isOpen;
+                
+                if (isOpen) {
+                    chatButton.classList.add('active');
+                    chatWindow.classList.add('active');
+                    
+                    // Load iframe on first open
+                    if (!iframeLoaded) {
+                        chatIframe.src = STREAMLIT_APP_URL;
+                        
+                        // Hide loading spinner once iframe loads
+                        chatIframe.onload = function() {
+                            loading.style.display = 'none';
+                            chatIframe.style.display = 'block';
+                            iframeLoaded = true;
+                        };
+                    }
+                    
+                    // Track analytics event (if Google Analytics is present)
+                    if (typeof gtag !== 'undefined') {
+                        gtag('event', 'chatbot_opened', {
+                            'event_category': 'engagement',
+                            'event_label': 'Ask Scottie'
+                        });
+                    }
+                } else {
+                    chatButton.classList.remove('active');
+                    chatWindow.classList.remove('active');
+                }
+            }
+
+            // Event listeners
+            chatButton.addEventListener('click', toggleChat);
+
+            // Close on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && isOpen) {
+                    toggleChat();
+                }
+            });
+
+            // Optional: Show notification badge after delay
+            setTimeout(function() {
+                if (!isOpen && !sessionStorage.getItem('scottie_seen')) {
+                    const notification = document.createElement('div');
+                    notification.className = 'scottie-notification';
+                    notification.textContent = '1';
+                    chatButton.appendChild(notification);
+                    
+                    // Remove notification on first click
+                    chatButton.addEventListener('click', function() {
+                        const notif = chatButton.querySelector('.scottie-notification');
+                        if (notif) notif.remove();
+                        sessionStorage.setItem('scottie_seen', 'true');
+                    }, { once: true });
+                }
+            }, 5000); // Show after 5 seconds
+
+            // Auto-open for specific URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openchat') === 'true') {
+                setTimeout(toggleChat, 1000);
+            }
+        })();
+    </script>
+</body>
+</html>
