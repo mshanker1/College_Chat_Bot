@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Ping the app
         # The -sS flags make curl silent on success but show errors if it fails
-        run: curl -sS https://your-app-name.streamlit.app > /dev/null
+        run: curl -sS https://askscottie.streamlit.app > /dev/null
